@@ -1,0 +1,28 @@
+Package: drevotalkR
+Type: Package
+Title: TreeTalker Data Processing, Ecosystem Services, and Visualization
+Version: 0.1.0
+Authors@R: person("Alexey", "Yaroslavtsev", email = "yaroslavtsevam@gmail.com", role = c("aut", "cre"))
+Description: High-performance processing of raw TreeTalker (TT+ v2/v3, TT-Soil,
+    TT-Reference, TTG, TT-Cloud) sensor streams and SD-card backups using
+    'data.table' internally while returning standard 'data.frame' objects.
+    Converts raw signals into calibrated biophysical parameters (sap flux
+    density, whole-tree transpiration, stem and soil water content, radial
+    growth, 12-band spectral vegetation indices, 3D inclination angles),
+    transforms them into ecosystem service indicators (urban canopy cooling
+    and humidifying, water regulation, biomass and carbon sequestration,
+    biomechanical wind stability), and generates standard 'ggplot2'
+    visualizations with switchable English and Russian labels.
+License: GPL (>= 3)
+URL: https://github.com/yaroslavtsevam/drevotalkR
+BugReports: https://github.com/yaroslavtsevam/drevotalkR/issues
+Encoding: UTF-8
+Imports:
+    data.table,
+    ggplot2,
+    stats,
+    utils
+Suggests:
+    testthat (>= 3.0.0)
+Config/testthat/edition: 3
+Config/roxygen2/version: 8.1.1
