@@ -25,7 +25,9 @@ tt_clean_logger_lines <- function(lines, add_server_time = TRUE) {
   lines <- trimws(lines)
 
   # Keep only lines where the 3rd semicolon-delimited field is a valid TT packet code
-  valid_pkt <- grepl("^([^;]+;){2}\\s*(45|49|4B|4C|4D|55|60|61)\\s*;", lines, ignore.case = TRUE)
+  # and the line contains only valid ASCII telemetry characters (drops UART byte collisions)
+  valid_pkt <- grepl("^([^;]+;){2}\\s*(45|49|4B|4C|4D|55|60|61)\\s*;", lines, ignore.case = TRUE) &
+    grepl("^[0-9A-Za-z_.,:;+ -]+$", lines)
   lines <- lines[valid_pkt]
   if (length(lines) == 0L) return(character(0))
 
@@ -323,7 +325,8 @@ tt_read_backup <- function(backup_folder, metadata = NULL) {
     clean_lines <- tt_clean_logger_lines(raw_lines, add_server_time = TRUE)
     if (length(clean_lines) == 0L) return(NULL)
     tryCatch(
-      data.table::fread(text = clean_lines, sep = ";", fill = TRUE, header = FALSE, showProgress = FALSE),
+      data.table::fread(text = clean_lines, sep = ";", fill = Inf, header = FALSE,
+                        integer64 = "numeric", showProgress = FALSE),
       error = function(e) NULL
     )
   })
@@ -355,11 +358,13 @@ tt_restore_cloud_backup <- function(input_data, output_file = NULL) {
   if (is.character(input_data) && length(input_data) == 1L && file.exists(input_data)) {
     clean_lines <- tt_clean_logger_lines(readLines(input_data, warn = FALSE), add_server_time = FALSE)
     if (length(clean_lines) == 0L) return(data.frame())
-    dt <- data.table::fread(text = clean_lines, sep = ";", fill = TRUE, header = FALSE, showProgress = FALSE)
+    dt <- data.table::fread(text = clean_lines, sep = ";", fill = Inf, header = FALSE,
+                            integer64 = "numeric", showProgress = FALSE)
   } else if (is.character(input_data)) {
     clean_lines <- tt_clean_logger_lines(input_data, add_server_time = FALSE)
     if (length(clean_lines) == 0L) return(data.frame())
-    dt <- data.table::fread(text = clean_lines, sep = ";", fill = TRUE, header = FALSE, showProgress = FALSE)
+    dt <- data.table::fread(text = clean_lines, sep = ";", fill = Inf, header = FALSE,
+                            integer64 = "numeric", showProgress = FALSE)
   } else {
     dt <- data.table::as.data.table(input_data)
   }
@@ -420,7 +425,8 @@ tt_scrape <- function(id = NULL, custom_url = NULL, import_folder = NULL,
       raw_lines <- readLines(u, warn = FALSE)
       clean_lines <- tt_clean_logger_lines(raw_lines, add_server_time = TRUE)
       if (length(clean_lines) == 0L) return(NULL)
-      data.table::fread(text = clean_lines, sep = ";", fill = TRUE, header = FALSE, showProgress = FALSE)
+      data.table::fread(text = clean_lines, sep = ";", fill = Inf, header = FALSE,
+                        integer64 = "numeric", showProgress = FALSE)
     }, error = function(e) NULL, warning = function(w) NULL)
   })
   dt_cloud <- data.table::rbindlist(fetched, fill = TRUE, use.names = TRUE)
