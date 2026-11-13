@@ -15,7 +15,8 @@
 #' @export
 tt_clean_logger_lines <- function(lines, add_server_time = TRUE) {
   if (is.null(lines) || length(lines) == 0L) return(character(0))
-  lines <- trimws(as.character(lines))
+  lines <- iconv(as.character(lines), from = "latin1", to = "UTF-8", sub = "")
+  lines <- trimws(lines)
   lines <- lines[nzchar(lines)]
   if (length(lines) == 0L) return(character(0))
 
@@ -128,10 +129,18 @@ tt_types_to_list <- function(ttdata, split_by_55 = TRUE) {
   }
 
   dt <- data.table::as.data.table(ttdata)
-  meta_cols <- intersect(names(dt), c("Species", "DBH", "Name", "Site", "lat", "lon", "Dist", "Height"))
-  raw_cols <- setdiff(names(dt), meta_cols)
-  std_v <- paste0("V", seq_along(raw_cols))
-  data.table::setnames(dt, raw_cols, std_v)
+  known_meta <- c("Species", "DBH", "Name", "Site", "SiteIndex", "Corniferous",
+                  "DTT", "installation_height", "lat", "lon", "Dist", "Height",
+                  "CloudIndex", "TTver", "CloudName")
+  v_raw <- grep("^V[0-9]+$", names(dt), value = TRUE)
+  if (length(v_raw) >= 4L) {
+    meta_cols <- setdiff(names(dt), v_raw)
+  } else {
+    meta_cols <- intersect(names(dt), known_meta)
+    raw_cols <- setdiff(names(dt), meta_cols)
+    std_v <- paste0("V", seq_along(raw_cols))
+    data.table::setnames(dt, raw_cols, std_v)
+  }
 
   # Normalize V1 (Rec_Nr) and V2 (TT_ID) order
   dt <- merge_tt_metadata(dt, metadata = NULL)

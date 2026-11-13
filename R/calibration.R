@@ -106,6 +106,13 @@ tt_extrapolate_dates <- function(data, step_sec = 3600, tz_offset = NULL,
       as.integer(dv > thresh)
     }, by = TT_ID]
     dt[, charge_cycle := cumsum(ischarged), by = TT_ID]
+  } else if ("adc_bandgap" %in% names(dt) && "TT_ID" %in% names(dt)) {
+    dt[, ischarged := {
+      dbg <- c(0, diff(as.numeric(adc_bandgap)))
+      dbg[is.na(dbg)] <- 0
+      as.integer(dbg < -1500)
+    }, by = TT_ID]
+    dt[, charge_cycle := cumsum(ischarged), by = TT_ID]
   } else {
     dt[, `:=`(ischarged = 0L, charge_cycle = 0L)]
   }
@@ -134,11 +141,27 @@ tt_extrapolate_dates <- function(data, step_sec = 3600, tz_offset = NULL,
       } else {
         step_sec
       }
-      anchor_idx <- which(valid_now)[1L]
-      anchor_time <- ts_work[anchor_idx]
-      idx_seq <- seq_len(.N)
-      extrap <- anchor_time + (idx_seq - anchor_idx) * est_step
-      ts_work[!valid_now] <- extrap[!valid_now]
+      # Interpolate/extrapolate each contiguous invalid run from its nearest adjacent valid anchor
+      runs <- rle(valid_now)
+      ends <- cumsum(runs$lengths)
+      starts <- ends - runs$lengths + 1L
+      for (ri in which(!runs$values)) {
+        i_start <- starts[ri]
+        i_end <- ends[ri]
+        len_r <- i_end - i_start + 1L
+        has_prev <- i_start > 1L && valid_now[i_start - 1L]
+        has_next <- i_end < .N && valid_now[i_end + 1L]
+        if (has_prev && has_next) {
+          gap_sec <- as.numeric(ts_work[i_end + 1L]) - as.numeric(ts_work[i_start - 1L])
+          if (gap_sec > 0 && abs(gap_sec - (len_r + 1L) * est_step) <= max(7200, 0.2 * len_r * est_step)) {
+            ts_work[i_start:i_end] <- ts_work[i_start - 1L] + seq_len(len_r) * (gap_sec / (len_r + 1L))
+          }
+        } else if (has_next && len_r <= 72L) {
+          ts_work[i_start:i_end] <- ts_work[i_end + 1L] - seq.int(len_r, 1L) * est_step
+        } else if (has_prev && len_r <= 72L) {
+          ts_work[i_start:i_end] <- ts_work[i_start - 1L] + seq_len(len_r) * est_step
+        }
+      }
     }
     ts_work
   }, by = .(TT_ID, charge_cycle)]
